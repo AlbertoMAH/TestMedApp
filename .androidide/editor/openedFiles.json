@@ -1,0 +1,65 @@
+{
+  "allFiles": [
+    {
+      "file": "/storage/emulated/0/AndroidIDEProjects/GeekTest/app/src/main/java/com/mral/geektest/MainActivity.kt",
+      "selection": {
+        "end": {
+          "column": 1,
+          "index": 7682,
+          "line": 176
+        },
+        "start": {
+          "column": 0,
+          "index": 2056,
+          "line": 48
+        }
+      }
+    },
+    {
+      "file": "/storage/emulated/0/AndroidIDEProjects/GeekTest/app/build.gradle.kts",
+      "selection": {
+        "end": {
+          "column": 4,
+          "index": 1925,
+          "line": 68
+        },
+        "start": {
+          "column": 4,
+          "index": 1925,
+          "line": 68
+        }
+      }
+    },
+    {
+      "file": "/storage/emulated/0/AndroidIDEProjects/GeekTest/app/src/main/AndroidManifest.xml",
+      "selection": {
+        "end": {
+          "column": 0,
+          "index": 39,
+          "line": 1
+        },
+        "start": {
+          "column": 0,
+          "index": 39,
+          "line": 1
+        }
+      }
+    },
+    {
+      "file": "/storage/emulated/0/AndroidIDEProjects/GeekTest/app/src/main/java/com/mral/LocationHelper.kt",
+      "selection": {
+        "end": {
+          "column": 1,
+          "index": 3383,
+          "line": 101
+        },
+        "start": {
+          "column": 0,
+          "index": 339,
+          "line": 12
+        }
+      }
+    }
+  ],
+  "selectedFile": "/storage/emulated/0/AndroidIDEProjects/GeekTest/app/src/main/java/com/mral/geektest/MainActivity.kt"
+}
