@@ -38,7 +38,9 @@ object LocationHelper {
                 val locationRequest = LocationRequest.Builder(
                     Priority.PRIORITY_HIGH_ACCURACY,
                     0L
-                ).setMaxUpdates(1).build()
+                )
+                    .setMaxUpdates(1)
+                    .build()
 
                 val locationCallback = object : LocationCallback() {
                     override fun onLocationResult(result: LocationResult) {
@@ -63,7 +65,7 @@ object LocationHelper {
     fun startLocationUpdates(
         context: Context,
         fusedLocationClient: FusedLocationProviderClient,
-        locationUpdateIntervalMs: Long = 5000L,
+        locationUpdateIntervalMs: Long = 1000L, // Plus rapide : 1 seconde
         onLocationUpdate: (Location) -> Unit
     ): LocationCallback? {
         if (!hasLocationPermission(context)) {
@@ -74,7 +76,10 @@ object LocationHelper {
         val locationRequest = LocationRequest.Builder(
             Priority.PRIORITY_HIGH_ACCURACY,
             locationUpdateIntervalMs
-        ).build()
+        )
+            .setMinUpdateIntervalMillis(500L) // Autorise des updates plus fréquents si dispo
+            .setMinUpdateDistanceMeters(1f)   // Update dès 1 mètre de déplacement
+            .build()
 
         val locationCallback = object : LocationCallback() {
             override fun onLocationResult(result: LocationResult) {

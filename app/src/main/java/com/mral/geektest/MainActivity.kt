@@ -64,13 +64,16 @@ class MainActivity : ComponentActivity() {
 
                 var mapLibreMap by remember { mutableStateOf<org.maplibre.android.maps.MapLibreMap?>(null) }
                 var locationCallback by remember { mutableStateOf<LocationCallback?>(null) }
+                var sharedCoords by remember { mutableStateOf("") }
+                var isSharing by remember { mutableStateOf(false) }
+                var busNumber by remember { mutableStateOf("") }
+                var showBusNumberDialog by remember { mutableStateOf(false) }
 
                 val permissionLauncher = rememberLauncherForActivityResult(
                     ActivityResultContracts.RequestPermission()
                 ) { isGranted ->
                     if (isGranted) {
                         Toast.makeText(context, "Permission accordée", Toast.LENGTH_SHORT).show()
-                        // Tu peux lancer les mises à jour ici si besoin
                     } else {
                         Toast.makeText(context, "Permission refusée", Toast.LENGTH_SHORT).show()
                     }
@@ -115,7 +118,6 @@ class MainActivity : ComponentActivity() {
                                     return@FloatingActionButton
                                 }
 
-                                // Arrêter si déjà en cours
                                 locationCallback?.let {
                                     LocationHelper.stopLocationUpdates(fusedLocationClient, it)
                                 }
@@ -148,10 +150,29 @@ class MainActivity : ComponentActivity() {
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Button(
-                        onClick = { /* Action à définir */ },
+                        onClick = {
+                            if (!LocationHelper.hasLocationPermission(context)) {
+                                permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                                return@Button
+                            }
+
+                            if (isSharing) {
+                                // Arrêter le partage
+                                locationCallback?.let {
+                                    LocationHelper.stopLocationUpdates(fusedLocationClient, it)
+                                }
+                                locationCallback = null
+                                sharedCoords = ""
+                                busNumber = ""
+                                isSharing = false
+                            } else {
+                                // Demander le numéro de bus avant de démarrer
+                                showBusNumberDialog = true
+                            }
+                        },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Partager sa position")
+                        Text(if (isSharing) "Arrêter le partage" else "Partager sa position")
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -161,6 +182,80 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("Rechercher un numéro de bus")
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    if (isSharing) {
+                        Text(
+                            text = sharedCoords,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.Black
+                        )
+                    }
+
+                    if (showBusNumberDialog) {
+                        var inputText by remember { mutableStateOf("") }
+
+                        AlertDialog(
+                            onDismissRequest = { showBusNumberDialog = false },
+                            title = { Text("Numéro de bus") },
+                            text = {
+                                OutlinedTextField(
+                                    value = inputText,
+                                    onValueChange = { inputText = it },
+                                    label = { Text("Entrez le numéro du bus") },
+                                    singleLine = true
+                                )
+                            },
+                            confirmButton = {
+                                Button(
+                                    onClick = {
+                                        busNumber = inputText.trim()
+                                        showBusNumberDialog = false
+
+                                        // Obtenir la position immédiatement
+                                        LocationHelper.getCurrentLocation(
+                                            context,
+                                            fusedLocationClient
+                                        ) { location ->
+                                            if (location != null) {
+                                                sharedCoords =
+                                                    "Bus n°$busNumber - Lat: ${location.latitude}, Lng: ${location.longitude}"
+                                            } else {
+                                                sharedCoords =
+                                                    "Bus n°$busNumber - Position non disponible"
+                                            }
+                                        }
+
+                                        // Suivi en temps réel
+                                        locationCallback?.let {
+                                            LocationHelper.stopLocationUpdates(fusedLocationClient, it)
+                                        }
+
+                                        locationCallback = LocationHelper.startLocationUpdates(
+                                            context,
+                                            fusedLocationClient,
+                                            5000L
+                                        ) { location ->
+                                            sharedCoords =
+                                                "Bus n°$busNumber - Lat: ${location.latitude}, Lng: ${location.longitude}"
+                                        }
+
+                                        isSharing = true
+                                    }
+                                ) {
+                                    Text("Valider")
+                                }
+                            },
+                            dismissButton = {
+                                OutlinedButton(
+                                    onClick = { showBusNumberDialog = false }
+                                ) {
+                                    Text("Annuler")
+                                }
+                            }
+                        )
                     }
                 }
 
