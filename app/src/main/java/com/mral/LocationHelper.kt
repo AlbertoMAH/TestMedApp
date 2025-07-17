@@ -16,6 +16,8 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.io.OutputStreamWriter
 import java.io.BufferedWriter
+import java.io.BufferedReader
+import java.io.InputStreamReader
 
 // 🔽 Pour les logs
 import android.util.Log
@@ -114,29 +116,41 @@ object LocationHelper {
     }
 
     fun sendPositionToServer(busNumber: String, latitude: Double, longitude: Double) {
-        val json = JSONObject().apply {
-            put("busNumber", busNumber)
-            put("latitude", latitude)
-            put("longitude", longitude)
-        }
-
-        Thread {
-            try {
-                val url = URL("https://geektest.onrender.com/api/position")
-                val connection = url.openConnection() as HttpURLConnection
-                connection.requestMethod = "POST"
-                connection.setRequestProperty("Content-Type", "application/json; utf-8")
-                connection.doOutput = true
-
-                val output = BufferedWriter(OutputStreamWriter(connection.outputStream, "UTF-8"))
-                output.write(json.toString())
-                output.flush()
-                output.close()
-
-                Log.d("API", "Réponse: ${connection.responseCode}")
-            } catch (e: Exception) {
-                Log.e("API", "Erreur d'envoi : ${e.message}")
-            }
-        }.start()
+    val json = JSONObject().apply {
+        put("busNumber", busNumber)
+        put("latitude", latitude)
+        put("longitude", longitude)
     }
+
+    Thread {
+        try {
+            val url = URL("https://geektest.onrender.com/api/position")
+            val connection = url.openConnection() as HttpURLConnection
+            connection.requestMethod = "POST"
+            connection.setRequestProperty("Content-Type", "application/json; utf-8")
+            connection.setRequestProperty("Accept", "application/json")
+            connection.doOutput = true
+            connection.doInput = true // ← important !
+
+            val output = BufferedWriter(OutputStreamWriter(connection.outputStream, "UTF-8"))
+            output.write(json.toString())
+            output.flush()
+            output.close()
+
+            // Lis la réponse (très important pour que la requête soit proprement terminée)
+            val input = BufferedReader(InputStreamReader(connection.inputStream))
+            val response = StringBuilder()
+            var line: String?
+
+            while (input.readLine().also { line = it } != null) {
+                response.append(line)
+            }
+            input.close()
+
+            Log.d("API", "Réponse: ${connection.responseCode} ${response}")
+        } catch (e: Exception) {
+            Log.e("API", "Erreur d'envoi : ${e.message}")
+        }
+    }.start()
+}
 }
