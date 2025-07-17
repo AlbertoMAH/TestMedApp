@@ -44,11 +44,12 @@ import com.google.android.gms.location.Priority
 import android.os.Looper
 import com.mral.LocationHelper.*
 import org.maplibre.android.annotations.Marker
+import org.maplibre.android.location.LocationComponentActivationOptions
+import org.maplibre.android.location.modes.CameraMode
+import org.maplibre.android.location.modes.RenderMode
 
 
 class MainActivity : ComponentActivity() {
-
-    private var currentMarker: Marker? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -72,11 +73,11 @@ class MainActivity : ComponentActivity() {
                 val permissionLauncher = rememberLauncherForActivityResult(
                     ActivityResultContracts.RequestPermission()
                 ) { isGranted ->
-                    if (isGranted) {
-                        Toast.makeText(context, "Permission accordée", Toast.LENGTH_SHORT).show()
-                    } else {
-                        Toast.makeText(context, "Permission refusée", Toast.LENGTH_SHORT).show()
-                    }
+                    Toast.makeText(
+                        context,
+                        if (isGranted) "Permission accordée" else "Permission refusée",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
 
                 Column(
@@ -104,7 +105,24 @@ class MainActivity : ComponentActivity() {
                                             Style.Builder().fromUri(
                                                 "https://api.maptiler.com/maps/streets/style.json?key=3VWchhcacNazLBGKImfz"
                                             )
-                                        )
+                                        ) { style ->
+                                            if (ContextCompat.checkSelfPermission(
+                                                    context,
+                                                    Manifest.permission.ACCESS_FINE_LOCATION
+                                                ) == PackageManager.PERMISSION_GRANTED
+                                            ) {
+                                                map.locationComponent.apply {
+                                                    activateLocationComponent(
+                                                        LocationComponentActivationOptions.builder(context, style)
+                                                            .useDefaultLocationEngine(true)
+                                                            .build()
+                                                    )
+                                                    isLocationComponentEnabled = true
+                                                    cameraMode = CameraMode.TRACKING
+                                                    renderMode = RenderMode.COMPASS
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             },
@@ -128,15 +146,7 @@ class MainActivity : ComponentActivity() {
                                     5000L
                                 ) { location ->
                                     val latLng = LatLng(location.latitude, location.longitude)
-                                    mapLibreMap?.apply {
-                                        animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15.0))
-                                        currentMarker?.let { removeMarker(it) }
-                                        currentMarker = addMarker(
-                                            MarkerOptions()
-                                                .position(latLng)
-                                                .title("Ma position")
-                                        )
-                                    }
+                                    mapLibreMap?.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15.0))
                                 }
                             },
                             modifier = Modifier
@@ -157,7 +167,6 @@ class MainActivity : ComponentActivity() {
                             }
 
                             if (isSharing) {
-                                // Arrêter le partage
                                 locationCallback?.let {
                                     LocationHelper.stopLocationUpdates(fusedLocationClient, it)
                                 }
@@ -166,7 +175,6 @@ class MainActivity : ComponentActivity() {
                                 busNumber = ""
                                 isSharing = false
                             } else {
-                                // Demander le numéro de bus avant de démarrer
                                 showBusNumberDialog = true
                             }
                         },
@@ -178,7 +186,7 @@ class MainActivity : ComponentActivity() {
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Button(
-                        onClick = { /* Action à définir */ },
+                        onClick = { /* À implémenter plus tard */ },
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("Rechercher un numéro de bus")
@@ -214,7 +222,6 @@ class MainActivity : ComponentActivity() {
                                         busNumber = inputText.trim()
                                         showBusNumberDialog = false
 
-                                        // Obtenir la position immédiatement
                                         LocationHelper.getCurrentLocation(
                                             context,
                                             fusedLocationClient
@@ -222,13 +229,16 @@ class MainActivity : ComponentActivity() {
                                             if (location != null) {
                                                 sharedCoords =
                                                     "Bus n°$busNumber - Lat: ${location.latitude}, Lng: ${location.longitude}"
+                                                LocationHelper.sendPositionToServer(
+                                                    busNumber,
+                                                    location.latitude,
+                                                    location.longitude
+                                                )
                                             } else {
-                                                sharedCoords =
-                                                    "Bus n°$busNumber - Position non disponible"
+                                                sharedCoords = "Bus n°$busNumber - Position non disponible"
                                             }
                                         }
 
-                                        // Suivi en temps réel
                                         locationCallback?.let {
                                             LocationHelper.stopLocationUpdates(fusedLocationClient, it)
                                         }
@@ -240,6 +250,11 @@ class MainActivity : ComponentActivity() {
                                         ) { location ->
                                             sharedCoords =
                                                 "Bus n°$busNumber - Lat: ${location.latitude}, Lng: ${location.longitude}"
+                                            LocationHelper.sendPositionToServer(
+                                                busNumber,
+                                                location.latitude,
+                                                location.longitude
+                                            )
                                         }
 
                                         isSharing = true

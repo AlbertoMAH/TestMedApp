@@ -10,6 +10,16 @@ import android.widget.Toast
 import androidx.core.content.ContextCompat
 import com.google.android.gms.location.*
 
+// 🔽 Pour l'envoi HTTP + JSON
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
+import java.io.OutputStreamWriter
+import java.io.BufferedWriter
+
+// 🔽 Pour les logs
+import android.util.Log
+
 object LocationHelper {
 
     fun hasLocationPermission(context: Context): Boolean {
@@ -38,9 +48,7 @@ object LocationHelper {
                 val locationRequest = LocationRequest.Builder(
                     Priority.PRIORITY_HIGH_ACCURACY,
                     0L
-                )
-                    .setMaxUpdates(1)
-                    .build()
+                ).setMaxUpdates(1).build()
 
                 val locationCallback = object : LocationCallback() {
                     override fun onLocationResult(result: LocationResult) {
@@ -65,7 +73,7 @@ object LocationHelper {
     fun startLocationUpdates(
         context: Context,
         fusedLocationClient: FusedLocationProviderClient,
-        locationUpdateIntervalMs: Long = 1000L, // Plus rapide : 1 seconde
+        locationUpdateIntervalMs: Long = 1000L,
         onLocationUpdate: (Location) -> Unit
     ): LocationCallback? {
         if (!hasLocationPermission(context)) {
@@ -77,8 +85,8 @@ object LocationHelper {
             Priority.PRIORITY_HIGH_ACCURACY,
             locationUpdateIntervalMs
         )
-            .setMinUpdateIntervalMillis(500L) // Autorise des updates plus fréquents si dispo
-            .setMinUpdateDistanceMeters(1f)   // Update dès 1 mètre de déplacement
+            .setMinUpdateIntervalMillis(500L)
+            .setMinUpdateDistanceMeters(1f)
             .build()
 
         val locationCallback = object : LocationCallback() {
@@ -103,5 +111,32 @@ object LocationHelper {
         locationCallback?.let {
             fusedLocationClient.removeLocationUpdates(it)
         }
+    }
+
+    fun sendPositionToServer(busNumber: String, latitude: Double, longitude: Double) {
+        val json = JSONObject().apply {
+            put("busNumber", busNumber)
+            put("latitude", latitude)
+            put("longitude", longitude)
+        }
+
+        Thread {
+            try {
+                val url = URL("https://geektest.onrender.com/api/position")
+                val connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "POST"
+                connection.setRequestProperty("Content-Type", "application/json; utf-8")
+                connection.doOutput = true
+
+                val output = BufferedWriter(OutputStreamWriter(connection.outputStream, "UTF-8"))
+                output.write(json.toString())
+                output.flush()
+                output.close()
+
+                Log.d("API", "Réponse: ${connection.responseCode}")
+            } catch (e: Exception) {
+                Log.e("API", "Erreur d'envoi : ${e.message}")
+            }
+        }.start()
     }
 }
