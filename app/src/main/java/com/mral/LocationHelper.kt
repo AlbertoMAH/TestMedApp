@@ -123,33 +123,49 @@ object LocationHelper {
     }
 
     Thread {
+        var connection: HttpURLConnection? = null
         try {
             val url = URL("https://geektest.onrender.com/api/position")
-            val connection = url.openConnection() as HttpURLConnection
+            connection = url.openConnection() as HttpURLConnection
+            
+            // Configuration de la connection
             connection.requestMethod = "POST"
-            connection.setRequestProperty("Content-Type", "application/json; utf-8")
+            connection.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
             connection.setRequestProperty("Accept", "application/json")
             connection.doOutput = true
-            connection.doInput = true // ← important !
+            connection.doInput = true
+            connection.connectTimeout = 10000 // 10 secondes
+            connection.readTimeout = 10000 // 10 secondes
 
-            val output = BufferedWriter(OutputStreamWriter(connection.outputStream, "UTF-8"))
-            output.write(json.toString())
-            output.flush()
-            output.close()
-
-            // Lis la réponse (très important pour que la requête soit proprement terminée)
-            val input = BufferedReader(InputStreamReader(connection.inputStream))
-            val response = StringBuilder()
-            var line: String?
-
-            while (input.readLine().also { line = it } != null) {
-                response.append(line)
+            // Envoi des données
+            connection.outputStream.use { outputStream ->
+                val writer = OutputStreamWriter(outputStream, "UTF-8")
+                writer.write(json.toString())
+                writer.flush()
             }
-            input.close()
 
-            Log.d("API", "Réponse: ${connection.responseCode} ${response}")
+            // Lecture de la réponse
+            val responseCode = connection.responseCode
+            val inputStream = if (responseCode < 400) {
+                connection.inputStream
+            } else {
+                connection.errorStream
+            }
+
+            val response = inputStream?.bufferedReader()?.use { it.readText() } ?: ""
+            
+            Log.d("API", "Code: $responseCode, Réponse: $response")
+            
+            if (responseCode in 200..299) {
+                Log.d("API", "Position envoyée avec succès pour le bus $busNumber")
+            } else {
+                Log.e("API", "Erreur serveur: $responseCode - $response")
+            }
+            
         } catch (e: Exception) {
-            Log.e("API", "Erreur d'envoi : ${e.message}")
+            Log.e("API", "Erreur d'envoi pour le bus $busNumber: ${e.message}", e)
+        } finally {
+            connection?.disconnect()
         }
     }.start()
 }
