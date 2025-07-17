@@ -171,6 +171,9 @@ class MainActivity : ComponentActivity() {
                                     LocationHelper.stopLocationUpdates(fusedLocationClient, it)
                                 }
                                 locationCallback = null
+
+                                LocationHelper.stopSharingOnServer(busNumber)
+
                                 sharedCoords = ""
                                 busNumber = ""
                                 isSharing = false

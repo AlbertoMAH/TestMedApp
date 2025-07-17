@@ -116,57 +116,91 @@ object LocationHelper {
     }
 
     fun sendPositionToServer(busNumber: String, latitude: Double, longitude: Double) {
-    val json = JSONObject().apply {
-        put("busNumber", busNumber)
-        put("latitude", latitude)
-        put("longitude", longitude)
+        val json = JSONObject().apply {
+            put("busNumber", busNumber)
+            put("latitude", latitude)
+            put("longitude", longitude)
+        }
+
+        Thread {
+            var connection: HttpURLConnection? = null
+            try {
+                val url = URL("https://geektest.onrender.com/api/position")
+                connection = url.openConnection() as HttpURLConnection
+
+                connection.requestMethod = "POST"
+                connection.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
+                connection.setRequestProperty("Accept", "application/json")
+                connection.doOutput = true
+                connection.doInput = true
+                connection.connectTimeout = 10000
+                connection.readTimeout = 10000
+
+                connection.outputStream.use { outputStream ->
+                    val writer = OutputStreamWriter(outputStream, "UTF-8")
+                    writer.write(json.toString())
+                    writer.flush()
+                }
+
+                val responseCode = connection.responseCode
+                val inputStream = if (responseCode < 400) {
+                    connection.inputStream
+                } else {
+                    connection.errorStream
+                }
+
+                val response = inputStream?.bufferedReader()?.use { it.readText() } ?: ""
+
+                Log.d("API", "Code: $responseCode, Réponse: $response")
+
+                if (responseCode in 200..299) {
+                    Log.d("API", "Position envoyée avec succès pour le bus $busNumber")
+                } else {
+                    Log.e("API", "Erreur serveur: $responseCode - $response")
+                }
+
+            } catch (e: Exception) {
+                Log.e("API", "Erreur d'envoi pour le bus $busNumber: ${e.message}", e)
+            } finally {
+                connection?.disconnect()
+            }
+        }.start()
     }
 
-    Thread {
-        var connection: HttpURLConnection? = null
-        try {
-            val url = URL("https://geektest.onrender.com/api/position")
-            connection = url.openConnection() as HttpURLConnection
-            
-            // Configuration de la connection
-            connection.requestMethod = "POST"
-            connection.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
-            connection.setRequestProperty("Accept", "application/json")
-            connection.doOutput = true
-            connection.doInput = true
-            connection.connectTimeout = 10000 // 10 secondes
-            connection.readTimeout = 10000 // 10 secondes
-
-            // Envoi des données
-            connection.outputStream.use { outputStream ->
-                val writer = OutputStreamWriter(outputStream, "UTF-8")
-                writer.write(json.toString())
-                writer.flush()
-            }
-
-            // Lecture de la réponse
-            val responseCode = connection.responseCode
-            val inputStream = if (responseCode < 400) {
-                connection.inputStream
-            } else {
-                connection.errorStream
-            }
-
-            val response = inputStream?.bufferedReader()?.use { it.readText() } ?: ""
-            
-            Log.d("API", "Code: $responseCode, Réponse: $response")
-            
-            if (responseCode in 200..299) {
-                Log.d("API", "Position envoyée avec succès pour le bus $busNumber")
-            } else {
-                Log.e("API", "Erreur serveur: $responseCode - $response")
-            }
-            
-        } catch (e: Exception) {
-            Log.e("API", "Erreur d'envoi pour le bus $busNumber: ${e.message}", e)
-        } finally {
-            connection?.disconnect()
+    fun stopSharingOnServer(busNumber: String) {
+        val json = JSONObject().apply {
+            put("busNumber", busNumber)
         }
-    }.start()
-}
+
+        Thread {
+            var connection: HttpURLConnection? = null
+            try {
+                val url = URL("https://geektest.onrender.com/api/stopSharing")
+                connection = url.openConnection() as HttpURLConnection
+
+                connection.requestMethod = "POST"
+                connection.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
+                connection.doOutput = true
+                connection.connectTimeout = 10000
+                connection.readTimeout = 10000
+
+                connection.outputStream.use { outputStream ->
+                    val writer = OutputStreamWriter(outputStream, "UTF-8")
+                    writer.write(json.toString())
+                    writer.flush()
+                }
+
+                val responseCode = connection.responseCode
+                if (responseCode in 200..299) {
+                    Log.d("API", "Arrêt du partage signalé au serveur pour bus $busNumber")
+                } else {
+                    Log.e("API", "Erreur serveur lors de l'arrêt du partage: $responseCode")
+                }
+            } catch (e: Exception) {
+                Log.e("API", "Erreur réseau lors de l'arrêt du partage: ${e.message}")
+            } finally {
+                connection?.disconnect()
+            }
+        }.start()
+    }
 }
